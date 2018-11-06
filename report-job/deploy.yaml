@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: report
+spec:
+  selector:
+    matchLabels:
+      app: report
+  template:
+    metadata:
+      labels:
+        app: report
+    spec:
+      containers:
+      - image: registry-vpc.cn-hangzhou.aliyuncs.com/wangbs/report-job:latest
+        name: report
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: report-view
+spec:
+  selector:
+    app: report
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  type: LoadBalancer
+
+--- 
+apiVersion: v1
+kind: Service
+metadata:
+  name: report
+spec:
+  selector:
+    app: report
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  clusterIP: None
+--- 
+
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: generator
+spec:
+  schedule: "*/1 * * * *"  #generate report every minute
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: generator
+            image: registry-vpc.cn-hangzhou.aliyuncs.com/acs/busybox
+            args:
+            - /bin/sh
+            - -c
+            - wget --post-data="$HOSTNAME-report.txt" http://report/report
+          restartPolicy: OnFailure
+
